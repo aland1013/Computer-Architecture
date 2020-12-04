@@ -1,5 +1,4 @@
 """CPU functionality."""
-
 import sys
 
 HLT = 0b00000001
@@ -16,23 +15,29 @@ class CPU:
         self.pc  = 0
         self.running = False
 
-    def load(self):
+    def load(self, filename):
         """Load a program into memory."""
 
         address = 0
-
-        # For now, we've just hardcoded a program:
-
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
-
+        
+        program = []
+        
+        try:
+            with open(filename) as f:
+                for line in f:
+                    comment_split = line.split('#')
+                    maybe_bin_num = comment_split[0]
+                    
+                    try:
+                        x = int(maybe_bin_num, 2)
+                        program.append(x)
+                    
+                    except:
+                        continue
+                    
+        except FileNotFoundError:
+            print('file not found')
+            
         for instruction in program:
             self.ram[address] = instruction
             address += 1
@@ -93,6 +98,9 @@ class CPU:
         elif ir == PRN:
             print(self.reg[operand_a])
             self.pc += 1
+        else:
+            print('invalid instruction')
+            pass
             
         self.pc += 1
     
