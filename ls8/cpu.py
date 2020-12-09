@@ -5,6 +5,8 @@ HLT = 0b00000001
 LDI = 0b10000010
 PRN = 0b01000111
 MUL = 0b10100010
+PUSH = 0b01000101
+POP = 0b01000110
 
 class CPU:
     """Main CPU class."""
@@ -14,7 +16,16 @@ class CPU:
         self.ram = [0] * 256
         self.reg = [0, 0, 0, 0, 0, 0, 0, 0xF4]
         self.pc  = 0
+        self.sp = 7
         self.running = False
+        
+        self.branch_table = {}
+        self.branch_table[HLT] = self.handle_HLT
+        self.branch_table[LDI] = self.handle_LDI
+        self.branch_table[PRN] = self.handle_PRN
+        self.branch_table[MUL] = self.handle_MUL
+        self.branch_table[PUSH] = self.handle_PUSH
+        self.branch_table[POP] = self.handle_POP
 
     def load(self, filename):
         """Load a program into memory."""
@@ -42,7 +53,6 @@ class CPU:
         for instruction in program:
             self.ram[address] = instruction
             address += 1
-
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -80,6 +90,31 @@ class CPU:
     
     def ram_write(self, MDR, MAR):
         self.ram[MAR] = MDR
+    
+    def handle_HLT(self, *args):
+        self.running = False
+    
+    def handle_LDI(self, *args):
+        self.reg[args[0]] = args[1]
+        self.pc += 3
+    
+    def handle_PRN(self, *args):
+        print(self.reg[args[0]])
+        self.pc += 2
+    
+    def handle_MUL(self, *args):
+        self.alu('MUL', args[0], args[1])
+        self.pc += 3
+    
+    def handle_PUSH(self, *args):
+        self.reg[self.sp] -= 1
+        self.ram[self.reg[self.sp]] = self.reg[args[0]]
+        self.pc += 2
+    
+    def handle_POP(self, *args):
+        self.reg[args[0]] = self.ram[self.reg[self.sp]]
+        self.reg[self.sp] += 1
+        self.pc += 2
 
     def run(self):
         """Run the CPU."""
@@ -90,23 +125,9 @@ class CPU:
             operand_a = self.ram_read(self.pc + 1)
             operand_b = self.ram_read(self.pc + 2)
             
-            self.execute_instruction(ir, operand_a, operand_b)
-                
-    def execute_instruction(self, ir, operand_a, operand_b):
-        if ir == HLT:
-            self.running = False
-        elif ir == LDI:
-            self.reg[operand_a] = operand_b
-            self.pc += 2
-        elif ir == PRN:
-            print(self.reg[operand_a])
-            self.pc += 1
-        elif ir == MUL:
-            self.alu('MUL', operand_a, operand_b)
-            self.pc += 2
-        else:
-            print('invalid instruction')
-            pass
-            
-        self.pc += 1
-    
+            if ir in self.branch_table:
+                self.branch_table[ir](operand_a, operand_b)
+            else:
+                print('invalid instruction')
+                self.pc += 1
+                pass
