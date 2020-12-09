@@ -16,7 +16,7 @@ class CPU:
         self.ram = [0] * 256
         self.reg = [0, 0, 0, 0, 0, 0, 0, 0xF4]
         self.pc  = 0
-        self.sp = 7
+        self.sp = self.reg[7]
         self.running = False
         
         self.branch_table = {}
@@ -107,13 +107,13 @@ class CPU:
         self.pc += 3
     
     def handle_PUSH(self, *args):
-        self.reg[self.sp] -= 1
-        self.ram[self.reg[self.sp]] = self.reg[args[0]]
+        self.sp -= 1
+        self.ram[self.sp] = self.reg[args[0]]
         self.pc += 2
     
     def handle_POP(self, *args):
-        self.reg[args[0]] = self.ram[self.reg[self.sp]]
-        self.reg[self.sp] += 1
+        self.reg[args[0]] = self.ram[self.sp]
+        self.sp += 1
         self.pc += 2
 
     def run(self):
