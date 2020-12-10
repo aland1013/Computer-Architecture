@@ -4,9 +4,12 @@ import sys
 HLT = 0b00000001
 LDI = 0b10000010
 PRN = 0b01000111
+ADD = 0b10100000
 MUL = 0b10100010
 PUSH = 0b01000101
 POP = 0b01000110
+CALL = 0b01010000
+RET = 0b00010001
 
 class CPU:
     """Main CPU class."""
@@ -23,9 +26,12 @@ class CPU:
         self.branch_table[HLT] = self.handle_HLT
         self.branch_table[LDI] = self.handle_LDI
         self.branch_table[PRN] = self.handle_PRN
+        self.branch_table[ADD] = self.handle_ADD
         self.branch_table[MUL] = self.handle_MUL
         self.branch_table[PUSH] = self.handle_PUSH
         self.branch_table[POP] = self.handle_POP
+        self.branch_table[CALL] = self.handle_CALL
+        self.branch_table[RET] = self.handle_RET
 
     def load(self, filename):
         """Load a program into memory."""
@@ -102,6 +108,10 @@ class CPU:
         print(self.reg[args[0]])
         self.pc += 2
     
+    def handle_ADD(self, *args):
+        self.alu('ADD', args[0], args[1])
+        self.pc += 3
+    
     def handle_MUL(self, *args):
         self.alu('MUL', args[0], args[1])
         self.pc += 3
@@ -115,6 +125,15 @@ class CPU:
         self.reg[args[0]] = self.ram_read(self.sp)
         self.sp += 1
         self.pc += 2
+    
+    def handle_CALL(self, *args):
+        self.sp -= 1
+        self.ram_write(self.pc + 2, self.sp)
+        self.pc = self.reg[args[0]]
+    
+    def handle_RET(self, *args):
+        self.pc = self.ram_read(self.sp)
+        self.sp += 1
 
     def run(self):
         """Run the CPU."""
@@ -130,4 +149,3 @@ class CPU:
             else:
                 print('invalid instruction')
                 self.pc += 1
-                pass
