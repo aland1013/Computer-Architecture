@@ -1,5 +1,6 @@
 """CPU functionality."""
 import sys
+import time
 
 HLT = 0b00000001
 LDI = 0b10000010
@@ -10,6 +11,13 @@ PUSH = 0b01000101
 POP = 0b01000110
 CALL = 0b01010000
 RET = 0b00010001
+ST = 0b10000100
+IRET = 0b00010011
+JMP = 0b01010100
+PRA = 0b01001000
+
+IM = 5
+IS = 6
 
 class CPU:
     """Main CPU class."""
@@ -21,6 +29,7 @@ class CPU:
         self.pc  = 0
         self.sp = self.reg[7]
         self.running = False
+        self.interrupts_enabled = True
         
         self.branch_table = {}
         self.branch_table[HLT] = self.handle_HLT
@@ -32,6 +41,10 @@ class CPU:
         self.branch_table[POP] = self.handle_POP
         self.branch_table[CALL] = self.handle_CALL
         self.branch_table[RET] = self.handle_RET
+        self.branch_table[ST] = self.handle_ST
+        self.branch_table[IRET] = self.handle_IRET
+        self.branch_table[JMP] = self.handle_JMP
+        self.branch_table[PRA] = self.handle_PRA
 
     def load(self, filename):
         """Load a program into memory."""
@@ -102,8 +115,8 @@ class CPU:
     
     def handle_LDI(self):
         r = self.ram_read(self.pc + 1)
-        num = self.ram_read(self.pc + 2)
-        self.reg[r] = num
+        value = self.ram_read(self.pc + 2)
+        self.reg[r] = value
         self.pc += 3
     
     def handle_PRN(self):
@@ -145,16 +158,71 @@ class CPU:
     def handle_RET(self):
         self.pc = self.ram_read(self.sp)
         self.sp += 1
+        
+    def handle_ST(self):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        value = self.reg[reg_b]
+        self.ram_write(value, self.reg[reg_a])
+        self.pc += 3
+    
+    def handle_IRET(self):
+        for i in range(6, -1, -1):
+            self.reg[i] = self.ram_read(self.sp)
+            self.sp += 1
+        self.pc = self.ram_read(self.sp)
+        self.sp += 1
+        self.interrupts_enabled = True
+    
+    def handle_JMP(self):
+        r = self.ram_read(self.pc + 1)
+        self.pc = self.reg[r]
+        
+    def handle_PRA(self):
+        r = self.ram_read(self.pc + 1)
+        value = self.reg[r]
+        print(chr(value))
+        self.pc += 2
 
     def run(self):
         """Run the CPU."""
         self.running = True
+        start_time = time.time()
         
         while self.running:
+            elapsed_time = time.time() - start_time
+            if elapsed_time >= 1:
+                start_time = time.time()
+                self.reg[IS] = self.reg[IS] | 1 << 0
+                
+            if self.interrupts_enabled:
+                masked_interrupts = self.reg[IM] & self.reg[IS]
+                
+                for i in range(8):
+                    interrupt_happened = ((masked_interrupts >> i) & 1) == 1
+                    
+                    if interrupt_happened:
+                        self.interrupts_enabled = False
+                        
+                        self.reg[IS] = self.reg[IS] & ~(1 << i)
+                        
+                        self.sp -= 1
+                        self.ram_write(self.pc, self.sp)
+                        
+                        
+                        for j in range(7):
+                            self.sp -= 1
+                            self.ram_write(self.reg[j], self.sp)
+                        
+                        self.pc = self.ram_read(0xF8 + i)
+                        
+                        break
+            
             ir = self.ram_read(self.pc)
             
             if ir in self.branch_table:
                 self.branch_table[ir]()
             else:
                 print('invalid instruction')
-                self.pc += 1
+                self.trace()
+                break
