@@ -97,41 +97,52 @@ class CPU:
     def ram_write(self, MDR, MAR):
         self.ram[MAR] = MDR
     
-    def handle_HLT(self, *args):
+    def handle_HLT(self):
         self.running = False
     
-    def handle_LDI(self, *args):
-        self.reg[args[0]] = args[1]
+    def handle_LDI(self):
+        r = self.ram_read(self.pc + 1)
+        num = self.ram_read(self.pc + 2)
+        self.reg[r] = num
         self.pc += 3
     
-    def handle_PRN(self, *args):
-        print(self.reg[args[0]])
+    def handle_PRN(self):
+        r = self.ram_read(self.pc + 1)
+        print(self.reg[r])
         self.pc += 2
     
-    def handle_ADD(self, *args):
-        self.alu('ADD', args[0], args[1])
+    def handle_ADD(self):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        self.alu('ADD', reg_a, reg_b)
         self.pc += 3
     
-    def handle_MUL(self, *args):
-        self.alu('MUL', args[0], args[1])
+    def handle_MUL(self):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        self.alu('MUL', reg_a, reg_b)
         self.pc += 3
     
-    def handle_PUSH(self, *args):
+    def handle_PUSH(self):
         self.sp -= 1
-        self.ram_write(self.reg[args[0]], self.sp)
+        r = self.ram_read(self.pc + 1)
+        self.ram_write(self.reg[r], self.sp)
         self.pc += 2
     
-    def handle_POP(self, *args):
-        self.reg[args[0]] = self.ram_read(self.sp)
+    def handle_POP(self):
+        r = self.ram_read(self.pc + 1)
+        value = self.ram_read(self.sp)
+        self.reg[r] = value
         self.sp += 1
         self.pc += 2
     
-    def handle_CALL(self, *args):
+    def handle_CALL(self):
         self.sp -= 1
         self.ram_write(self.pc + 2, self.sp)
-        self.pc = self.reg[args[0]]
+        r = self.ram_read(self.pc + 1)
+        self.pc = self.reg[r]
     
-    def handle_RET(self, *args):
+    def handle_RET(self):
         self.pc = self.ram_read(self.sp)
         self.sp += 1
 
@@ -141,11 +152,9 @@ class CPU:
         
         while self.running:
             ir = self.ram_read(self.pc)
-            operand_a = self.ram_read(self.pc + 1)
-            operand_b = self.ram_read(self.pc + 2)
             
             if ir in self.branch_table:
-                self.branch_table[ir](operand_a, operand_b)
+                self.branch_table[ir]()
             else:
                 print('invalid instruction')
                 self.pc += 1
